@@ -6,7 +6,7 @@ use std::fs;
 use std::os::windows::ffi::OsStringExt;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -49,11 +49,17 @@ enum CommandGroup {
 #[derive(Subcommand, Clone, Copy, Debug, Eq, PartialEq)]
 enum ApacheAction {
     /// Start Apache (foreground instance)
-    Start,
+    Start {
+        /// Print Apache output in this terminal (do not run hidden)
+        #[arg(long)]
+        output: bool,
+    },
     /// Stop Apache
     Stop,
     /// Restart Apache
     Restart,
+    /// Show running status (PID or stopped)
+    Status,
     /// Open apache\logs\error.log in the default viewer
     Logs,
     /// Open http://localhost/ in the default browser
@@ -77,37 +83,59 @@ fn main() -> Result<()> {
 
 fn handle_apache(action: ApacheAction, root: &Path) -> Result<()> {
     match action {
-        ApacheAction::Start => start_apache(root),
+        ApacheAction::Start { output } => start_apache(root, output),
         ApacheAction::Stop => stop_apache(root),
         ApacheAction::Restart => restart_apache(root),
+        ApacheAction::Status => status_apache(root),
         ApacheAction::Logs => open_logs(root),
         ApacheAction::Admin => open_admin(),
         ApacheAction::Config => open_config(root),
     }
 }
 
-fn start_apache(root: &Path) -> Result<()> {
+fn start_apache(root: &Path, output: bool) -> Result<()> {
     if let Some(pid) = current_apache_pid(root)? {
         println!("Apache already running (PID {}).", pid);
         return Ok(());
     }
 
     let httpd = httpd_path(root)?;
-    Command::new(&httpd)
-        .current_dir(root)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .with_context(|| format!("failed to spawn {}", httpd.display()))?;
 
-    let pid = wait_for_apache_pid(root, STARTUP_POLL_ATTEMPTS)?.ok_or_else(|| {
-        anyhow!(
-            "Apache failed to start – see {}",
-            root.join("apache").join("logs").join("error.log").display()
-        )
-    })?;
+    if output {
+        // Run httpd in the current terminal, inheriting stdio so output appears directly.
+        // This will block until httpd exits; closing the terminal will terminate Apache.
+        let status = Command::new(&httpd)
+            .current_dir(root)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+            .with_context(|| format!("failed to run {}", httpd.display()))?;
 
-    println!("Apache started (PID {}).", pid);
-    Ok(())
+        if status.success() {
+            println!("Apache exited with status {:?}", status.code());
+            Ok(())
+        } else {
+            bail!("Apache exited with status {:?}", status.code())
+        }
+    } else {
+        // Background/hidden start (existing behavior)
+        Command::new(&httpd)
+            .current_dir(root)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .with_context(|| format!("failed to spawn {}", httpd.display()))?;
+
+        let pid = wait_for_apache_pid(root, STARTUP_POLL_ATTEMPTS)?.ok_or_else(|| {
+            anyhow!(
+                "Apache failed to start – see {}",
+                root.join("apache").join("logs").join("error.log").display()
+            )
+        })?;
+
+        println!("Apache started (PID {}).", pid);
+        Ok(())
+    }
 }
 
 fn stop_apache(root: &Path) -> Result<()> {
@@ -128,7 +156,7 @@ fn stop_apache(root: &Path) -> Result<()> {
 fn restart_apache(root: &Path) -> Result<()> {
     stop_apache(root)?;
     thread::sleep(Duration::from_millis(500));
-    start_apache(root)
+    start_apache(root, false)
 }
 
 fn open_logs(root: &Path) -> Result<()> {
@@ -349,4 +377,13 @@ fn kill_process_tree(pid: u32) -> Result<()> {
     } else {
         bail!("taskkill returned exit code {:?}", status.code())
     }
+}
+
+fn status_apache(root: &Path) -> Result<()> {
+    if let Some(pid) = current_apache_pid(root)? {
+        println!("Apache running (PID {}).", pid);
+    } else {
+        println!("Apache is stopped.");
+    }
+    Ok(())
 }

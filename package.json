@@ -1,0 +1,16 @@
+{
+    "name": "web_dev",
+    "description": "Dev environment for all my personal and private web development projects based on my astro template",
+    "version": "0.1.1",
+    "license": "no touchy code",
+    "author": "samarixum",
+    "workspaces": [
+        "Sites/Anime-Dimension/main",
+        "Sites/astro-capacitor-template/main",
+        "Sites/Platinum-Hot-And-Cold/main",
+        "Sites/SpendSmart/main"
+    ],
+    "scripts": {
+        "build": "cd source\\xampp-ui\\new && cargo build --release && copy /Y target\\release\\lampctl.exe ..\\..\\xampp-build\\Built\\installed-xampp\\lampctl.exe"
+    }
+}

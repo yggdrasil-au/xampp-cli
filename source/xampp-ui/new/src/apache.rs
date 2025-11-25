@@ -80,6 +80,19 @@ pub fn handle_apache(action: ApacheAction, root: &Path) -> Result<()> {
             if let Some(doc_root) = document_root {
                 auto_register_or_update(root, &doc_root, port)?;
             }
+            
+            // Ensure only the correct port is enabled in httpd-vhosts.conf
+            let effective_port = if let Some(p) = port {
+                Some(p)
+            } else {
+                // Try to read from .lampctl-project.conf
+                get_project_port()
+            };
+
+            if let Some(p) = effective_port {
+                 enable_only_this_port(root, p)?;
+            }
+
             start_apache(root, output)
         }
         ApacheAction::Stop => stop_apache(root),
@@ -117,22 +130,52 @@ fn start_apache(root: &Path, output: bool) -> Result<()> {
     let httpd = httpd_path(root)?;
 
     if output {
-        // Run httpd in the current terminal, inheriting stdio so output appears directly.
-        // This will block until httpd exits; closing the terminal will terminate Apache.
-        let status = Command::new(&httpd)
+        println!("Starting Apache in foreground. Press Enter to stop.");
+        
+        // Run httpd in the current terminal, inheriting stdout/stderr so output appears directly.
+        // We do NOT inherit stdin, so we can read it in the parent process.
+        let mut child = Command::new(&httpd)
             .current_dir(root)
-            .stdin(Stdio::inherit())
+            .stdin(Stdio::null())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
-            .status()
-            .with_context(|| format!("failed to run {}", httpd.display()))?;
+            .spawn()
+            .with_context(|| format!("failed to spawn {}", httpd.display()))?;
 
-        if status.success() {
-            println!("Apache exited with status {:?}", status.code());
-            Ok(())
-        } else {
-            bail!("Apache exited with status {:?}", status.code())
+        // Spawn a thread to listen for Enter key
+        let (tx, rx) = std::sync::mpsc::channel();
+        thread::spawn(move || {
+            let mut input = String::new();
+            let _ = std::io::stdin().read_line(&mut input);
+            let _ = tx.send(());
+        });
+
+        loop {
+            // Check if child exited on its own
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    println!("Apache exited with status {:?}", status.code());
+                    return if status.success() { Ok(()) } else { bail!("Apache exited with error") };
+                }
+                Ok(None) => {
+                    // Still running
+                }
+                Err(e) => bail!("Error waiting for Apache: {}", e),
+            }
+
+            // Check if user pressed enter
+            if rx.try_recv().is_ok() {
+                println!("Stopping Apache...");
+                let _ = child.kill(); 
+                let _ = child.wait();
+                cleanup_pid_file(root);
+                break;
+            }
+            
+            thread::sleep(Duration::from_millis(100));
         }
+        
+        Ok(())
     } else {
         // Background/hidden start (existing behavior)
         Command::new(&httpd)
@@ -317,17 +360,6 @@ fn register_vhost(root: &Path, document_root: &str, port: u16) -> Result<()> {
         return update_vhost(root, proj_id, &vhosts_conf, &vhosts_content, document_root, port);
     }
     
-    // Check if port is already in use by the system
-    if is_port_in_use(port)? {
-        bail!("Port {} is already in use by the system", port);
-    }
-    
-    // Check if port is already defined in vhosts config
-    let listen_marker = format!("Listen {}", port);
-    if vhosts_content.contains(&listen_marker) {
-        bail!("Port {} is already defined in {}", port, vhosts_conf.display());
-    }
-    
     // Resolve document root to absolute path
     let doc_root_path = env::current_dir()?.join(document_root);
     let doc_root_abs = fs::canonicalize(&doc_root_path)
@@ -338,11 +370,31 @@ fn register_vhost(root: &Path, document_root: &str, port: u16) -> Result<()> {
     if doc_root_str.starts_with("//?/") {
         doc_root_str = doc_root_str[4..].to_string();
     }
+
+    // Check if port is already in use by the system
+    if is_port_in_use(port)? {
+        bail!("Port {} is already in use by the system", port);
+    }
     
-    // Generate vhost configuration
+    // Check if port is already defined in vhosts config
+    let listen_marker = format!("Listen {}", port);
+    let mut skip_append = false;
+
+    if vhosts_content.contains(&listen_marker) {
+        if check_vhost_match(&vhosts_content, port, &doc_root_str) {
+            println!("Port {} is already configured for this path. Reusing existing configuration.", port);
+            skip_append = true;
+        } else {
+            bail!("Port {} is already defined in {}", port, vhosts_conf.display());
+        }
+    }
+    
     let created_date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-    let vhost_config = format!(
-        r#"
+
+    if !skip_append {
+        // Generate vhost configuration
+        let vhost_config = format!(
+            r#"
 ## CLI CONF
 ## Proj ID: {}
 ## Created: {}
@@ -385,19 +437,21 @@ Listen {}
 </VirtualHost>
 ## END
 "#,
-        proj_id, created_date, port, port, port, doc_root_str, doc_root_str
-    );
+            proj_id, created_date, port, port, port, doc_root_str, doc_root_str
+        );
+        
+        // Append to httpd-vhosts.conf
+        let mut file = OpenOptions::new()
+            .append(true)
+            .open(&vhosts_conf)
+            .with_context(|| format!("Failed to open {}", vhosts_conf.display()))?;
+        
+        file.write_all(vhost_config.as_bytes())
+            .context("Failed to write vhost configuration")?;
+        
+        println!("✓ Virtual host configuration added to {}", vhosts_conf.display());
+    }
     
-    // Append to httpd-vhosts.conf
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open(&vhosts_conf)
-        .with_context(|| format!("Failed to open {}", vhosts_conf.display()))?;
-    
-    file.write_all(vhost_config.as_bytes())
-        .context("Failed to write vhost configuration")?;
-    
-    println!("✓ Virtual host configuration added to {}", vhosts_conf.display());
     println!("  Project ID: {}", proj_id);
     println!("  Port: {}", port);
     println!("  Document Root: {}", doc_root_str);
@@ -429,6 +483,36 @@ VHOST_CONFIG={}
     println!("  lampctl apache restart");
     
     Ok(())
+}
+
+fn check_vhost_match(content: &str, port: u16, target_root: &str) -> bool {
+    let vhost_start = format!("<VirtualHost *:{}>", port);
+    let lines: Vec<&str> = content.lines().collect();
+    let mut inside_target_vhost = false;
+    
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with(&vhost_start) {
+            inside_target_vhost = true;
+        } else if inside_target_vhost && trimmed.starts_with("</VirtualHost>") {
+            inside_target_vhost = false;
+        } else if inside_target_vhost {
+            if trimmed.starts_with("DocumentRoot") {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let mut path = parts[1..].join(" ");
+                    if path.starts_with('"') && path.ends_with('"') {
+                        path = path[1..path.len()-1].to_string();
+                    }
+                    let path = path.replace('\\', "/");
+                    if path.eq_ignore_ascii_case(target_root) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 fn update_vhost(_root: &Path, proj_id: u64, vhosts_conf: &Path, vhosts_content: &str, document_root: &str, new_port: u16) -> Result<()> {
@@ -607,6 +691,95 @@ VHOST_CONFIG={}
     println!("\nRestart Apache to apply changes:");
     println!("  lampctl apache restart");
     
+    Ok(())
+}
+
+fn get_project_port() -> Option<u16> {
+    let config_file_path = env::current_dir().ok()?.join(".lampctl-project.conf");
+    if !config_file_path.exists() {
+        return None;
+    }
+    
+    let config_content = fs::read_to_string(&config_file_path).ok()?;
+    config_content
+        .lines()
+        .find(|line| line.starts_with("PORT="))
+        .and_then(|line| line.strip_prefix("PORT="))
+        .and_then(|port_str| port_str.parse::<u16>().ok())
+}
+
+fn enable_only_this_port(root: &Path, target_port: u16) -> Result<()> {
+    let vhosts_conf = root.join("apache").join("conf").join("extra").join("httpd-vhosts.conf");
+    if !vhosts_conf.exists() {
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&vhosts_conf)
+        .with_context(|| format!("Failed to read {}", vhosts_conf.display()))?;
+    
+    let mut new_lines = Vec::new();
+    let mut inside_cli_conf = false;
+    let mut modified = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        
+        if trimmed == "## CLI CONF" {
+            inside_cli_conf = true;
+            new_lines.push(line.to_string());
+            continue;
+        }
+        
+        if trimmed == "## END" {
+            inside_cli_conf = false;
+            new_lines.push(line.to_string());
+            continue;
+        }
+
+        if inside_cli_conf {
+            // Check for Listen directive
+            // It could be "Listen 8080" or "# Listen 8080" or "#Listen 8080"
+            // We want to match "Listen <port>" or "#...Listen <port>"
+            
+            // Simple parsing: check if line contains "Listen "
+            if let Some(idx) = line.find("Listen ") {
+                let after_listen = &line[idx + 7..];
+                // Extract port number (take until non-digit)
+                let port_str: String = after_listen.chars().take_while(|c| c.is_ascii_digit()).collect();
+                
+                if let Ok(port) = port_str.parse::<u16>() {
+                    if port == target_port {
+                        // Ensure uncommented
+                        if line.trim_start().starts_with('#') {
+                            new_lines.push(format!("Listen {}", port));
+                            modified = true;
+                        } else {
+                            new_lines.push(line.to_string());
+                        }
+                    } else {
+                        // Ensure commented
+                        if !line.trim_start().starts_with('#') {
+                            new_lines.push(format!("# Listen {}", port));
+                            modified = true;
+                        } else {
+                            new_lines.push(line.to_string());
+                        }
+                    }
+                    continue;
+                }
+            }
+        }
+        
+        new_lines.push(line.to_string());
+    }
+
+    if modified {
+        let new_content = new_lines.join("\n");
+        fs::write(&vhosts_conf, new_content)
+            .with_context(|| format!("Failed to write {}", vhosts_conf.display()))?;
+        println!("Updated vhosts config to listen only on port {}", target_port);
+    }
+
     Ok(())
 }
 

@@ -1,19 +1,14 @@
 .history/
-xampp/
-xampp-*/
 
-*
-*/*
-**
-**/**
-
-/target/
 *.lock
 
-
-!src/
-!src/**
+!**/src/
 
 !.gitignore
 !Cargo.toml
 
+**/example-site/
+**/target/
+/source/xampp-ui/new/xampp/
+
+source/xampp-build/Built/installed-xampp/

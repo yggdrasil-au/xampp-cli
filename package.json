@@ -1,9 +1,12 @@
 {
     "name": "lampctl-cli",
+
     "description": "Dev environment for all my personal and private web development projects based on my astro template",
-    "version": "0.1.1",
-    "license": "no touchy code",
+    "version": "0.1.2",
+
+    "license": "^_^",
     "author": "samarixum",
+
     "scripts": {
         "build": "cd source\\xampp-ui\\new && cargo build --release && copy /Y target\\release\\lampctl.exe ..\\..\\xampp-build\\Built\\installed-xampp\\lampctl.exe",
         "clean": "cd source\\xampp-ui\\new && cargo clean"

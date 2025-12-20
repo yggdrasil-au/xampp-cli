@@ -23,7 +23,7 @@ where
 }
 
 pub fn detect_xampp_root() -> Result<PathBuf> {
-    if let Ok(from_env) = env::var("LAMPCTL_XAMPP_ROOT") {
+    if let Ok(from_env) = env::var("WLAMPCTL_XAMPP_ROOT") {
         let path = PathBuf::from(from_env);
         if is_xampp_root(&path) {
             return Ok(path);
@@ -50,7 +50,7 @@ pub fn detect_xampp_root() -> Result<PathBuf> {
     }
 
     Err(anyhow!(
-        "Failed to locate XAMPP root. Move lampctl next to xampp-control.exe or set LAMPCTL_XAMPP_ROOT."
+        "Failed to locate XAMPP root. Move wlampctl next to xampp-control.exe or set WLAMPCTL_XAMPP_ROOT."
     ))
 }
 

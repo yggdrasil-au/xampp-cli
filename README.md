@@ -1,65 +1,77 @@
-# WLAP-Server-CLI
+# the xampp-cli - WlampCTL
 
-# xampp-cli-control
+**A modern, CLI-driven reimagining of the XAMPP development environment.**
 
-command line version of xampp control panel
+The ultimate goal of this project is to create a development tool similar to Vite in usecase, but built upon a re-implementation of the XAMPP stack. It aims to provide a lightweight, cross-platform, and scriptable environment for PHP/Apache development.
 
+## Project Components
 
-Here's a polished **README.md** you can drop into the project root:
+### 1. CLI Control Panel (`source/xampp-ui/new`)
+*Status: Active Development (Rust)*
+
+A command-line replacement for the classic `xampp-control.exe`.
+
+*   **Current Functionality**: Operates as a drop-in replacement for the XAMPP GUI. It currently supports controlling **Apache** (Start, Stop, Restart, Status, Config).
+*   **Design**: Re-implements the logic of the original Perl/Delphi GUI but as a modern CLI tool.
+*   **Requirements**: Must be placed inside a valid XAMPP installation root (next to `xampp-control.exe`).
+
+### 2. XAMPP Builder (`source/xampp-build`)
+*Status: Planned / Concept*
+
+A re-implementation of the XAMPP installer and build tools.
+
+*   **Goal**: To replace the complex legacy build scripts with a smaller, simpler, and modern toolchain.
+*   **Scope**: Stripped down to essentials (Apache, maybe MySQL) to reduce bloat.
+
+## Roadmap
+
+*   **Cross-Platform Support**: Moving beyond Windows-only dependencies.
+*   **GUI**: A modern C# wrapper around the Rust CLI Core to provide a visual interface.
+*   **Full Stack Control**: Adding support for MySQL and other components.
 
 ---
 
-# 🧰 LampCTL — XAMPP Apache Control CLI
+# WlampCTL — XAMPP Apache Control CLI
 
 > A **Rust-based CLI** that re-implements the **Windows XAMPP Control Panel**'s **Apache controls** with **1:1 feature parity**, minus the GUI.
 
-LampCTL is a lightweight command-line replacement for `xampp-control.exe` focused solely on **Apache**.
-It uses the **actual XAMPP build** on disk — no external dependencies, no re-implementations — and can live **right next to the original control panel** inside your XAMPP directory.
+**WlampCTL** stands for **W**indows **L**inux **A**pache **M**odern **P**HP **C**on**t**ro**l**.
 
----
+WlampCTL is a lightweight command-line replacement for `xampp-control.exe` focused solely on **Apache**.
+It uses the **actual XAMPP build** on disk — no external dependencies, no re-implementations — and can live **right next to the original control panel** inside your XAMPP directory.
 
 ## ✨ Features
 
 * 🧭 **Apache-only control**, matching the Pascal GUI's functionality:
-
-  * Start / Stop / Restart Apache
-  * Register virtual hosts with automatic configuration
-  * Open `httpd.conf`, `error.log`, and `http://localhost/` (Admin)
+  * Start / Stop / Restart
+  * Configuration editing (`httpd.conf`)
+  * Admin page launch
+  * Log viewing
   * Status monitoring with detailed information
 * 🪄 Works **out of the box** — just drop the binary into your XAMPP root (e.g., `C:\xampp`).
 * 🧱 Uses the **real `httpd.exe`** shipped with XAMPP, exactly like the GUI.
 * 🔧 **Smart project management**:
-  * Auto-generates unique project IDs (timestamp-based)
-  * Automatic port selection when not specified
-  * Tracks creation and update timestamps
-  * Validates port availability (system + config)
-* 🪟 Windows-only, zero external runtime dependencies.
-
----
+  * Auto-generates unique project IDs
+  * Manages VirtualHosts automatically
+  * Validates port availability
 
 ## 📦 Installation
 
-1. Download a **standard Windows XAMPP distribution** (e.g. from [apachefriends.org](https://www.apachefriends.org/)).
-2. Place the compiled `lampctl.exe` binary **inside the XAMPP root folder**, next to `xampp-control.exe`:
+1.  Download or build `wlampctl.exe`.
+2.  Place the binary **inside the XAMPP root folder**, next to `xampp-control.exe`:
 
 ```
 C:\xampp\
 ├── apache\
 ├── php\
 ├── xampp-control.exe
-└── lampctl.exe   ← here
+└── wlampctl.exe   ← here
 ```
-
-3. Add `C:\xampp` to your system `PATH`.
-
----
 
 ## 🧭 Usage
 
-LampCTL mirrors the original GUI controls, but through a clean CLI:
-
 ```pwsh
-lampctl apache <action>
+wlampctl apache <action>
 ```
 
 ### Available Actions
@@ -78,43 +90,43 @@ lampctl apache <action>
 ### Examples
 
 ```pwsh
-# Start Apache (auto-registers project with smart port selection if .lampctl-project.conf doesn't exist)
-lampctl apache start
+# Start Apache (auto-registers project with smart port selection if .wlampctl-project.conf doesn't exist)
+wlampctl apache start
 
 # Start Apache with specific document root and port
-lampctl apache start --document-root .\example-www\ --port 8080
+wlampctl apache start --document-root .\example-www\ --port 8080
 
 # Register a new virtual host (or update existing one)
-lampctl apache register --document-root .\example-www\ --port 80
+wlampctl apache register --document-root .\example-www\ --port 80
 
 # Update an existing project's port
-lampctl apache register --document-root .\example-www\ --port 3000
+wlampctl apache register --document-root .\example-www\ --port 3000
 
 # Check Apache status
-lampctl apache status
+wlampctl apache status
 
 # Watch status with auto-refresh (checks every 2 seconds)
-lampctl apache status --watch 2s
+wlampctl apache status --watch 2s
 
 # Stop Apache
-lampctl apache stop
+wlampctl apache stop
 
 # Restart Apache
-lampctl apache restart
+wlampctl apache restart
 
 # Open error log
-lampctl apache logs
+wlampctl apache logs
 
 # Open Apache config
-lampctl apache config
+wlampctl apache config
 ```
 
 ### Virtual Host Management
 
-LampCTL provides intelligent virtual host management:
+WlampCTL provides intelligent virtual host management:
 
 **Project Configuration:**
-- Each project directory gets a `.lampctl-project.conf` file tracking:
+- Each project directory gets a `.wlampctl-project.conf` file tracking:
   - Unique project ID (timestamp-based)
   - Port number
   - Document root
@@ -122,7 +134,7 @@ LampCTL provides intelligent virtual host management:
   - Creation and last update timestamps
 
 **Smart Port Selection:**
-- When registering without specifying a port, LampCTL tries common ports in order:
+- When registering without specifying a port, WlampCTL tries common ports in order:
   - 80, 8080, 3000, 8000, 8888, 5000, 3333, 4444, 5555, 7777, 9000, 9999
   - Falls back to high ports (10000-10100) if all are taken
 - Validates ports against both system (netstat) and existing vhost configs
@@ -139,8 +151,8 @@ LampCTL provides intelligent virtual host management:
 ## 🛠️ Other Commands
 
 ```pwsh
-lampctl version   # Show LampCTL, Apache, and PHP versions
-lampctl root      # Print detected XAMPP root (location of the EXE)
+wlampctl version   # Show WlampCTL, Apache, and PHP versions
+wlampctl root      # Print detected XAMPP root (location of the EXE)
 ```
 
 ### Status Command Options
@@ -149,21 +161,21 @@ The `status` command provides detailed Apache information:
 
 ```pwsh
 # Basic status check
-lampctl apache status
+wlampctl apache status
 
 # Verbose output with additional details
-lampctl apache status --verbose
+wlampctl apache status --verbose
 
 # Watch mode with auto-refresh (checks every interval)
-lampctl apache status --watch 5s     # Refresh every 5 seconds
-lampctl apache status --watch 500ms  # Refresh every 500 milliseconds
-lampctl apache status --watch 2m     # Refresh every 2 minutes
+wlampctl apache status --watch 5s     # Refresh every 5 seconds
+wlampctl apache status --watch 500ms  # Refresh every 500 milliseconds
+wlampctl apache status --watch 2m     # Refresh every 2 minutes
 
 # Custom health probe URL
-lampctl apache status --probe http://localhost:8080/health
+wlampctl apache status --probe http://localhost:8080/health
 
 # Combine options
-lampctl apache status --verbose --watch 3s --probe http://localhost/server-status
+wlampctl apache status --verbose --watch 3s --probe http://localhost/server-status
 ```
 
 **Status Output:**
@@ -183,7 +195,7 @@ lampctl apache status --verbose --watch 3s --probe http://localhost/server-statu
 * Only **Apache** is supported. MySQL/FileZilla/Mercury/Tomcat are intentionally **ignored**.
 * Service features not implemented in this tool, only foreground run instances.
 * **Virtual host configs** are automatically managed in `apache\conf\extra\httpd-vhosts.conf` with clear markers.
-* Each project gets a `.lampctl-project.conf` file to track configuration and enable updates.
+* Each project gets a `.wlampctl-project.conf` file to track configuration and enable updates.
 
 ---
 
@@ -194,10 +206,10 @@ lampctl apache status --verbose --watch 3s --probe http://localhost/server-statu
 cargo build --release
 
 # The binary will be in:
-target/release/lampctl.exe
+target/release/wlampctl.exe
 ```
 
-Copy `lampctl.exe` into your XAMPP root folder.
+Copy `wlampctl.exe` into your XAMPP root folder.
 
 ---
 
@@ -205,7 +217,3 @@ Copy `lampctl.exe` into your XAMPP root folder.
 
 MIT License © 2025
 This project is not affiliated with Apache Friends or XAMPP.
-
----
-
-Would you like me to add badges (build status, Rust version, etc.) to the top of the README as well?

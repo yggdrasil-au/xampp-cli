@@ -15,9 +15,9 @@ use helpers::detect_xampp_root;
 
 #[derive(Parser)]
 #[command(
-    name = "lampctl",
+    name = "wlampctl",
     version,
-    about = "CLI for controlling the XAMPP web server"
+    about = "CLI for controlling the XAMPP apache server"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
 }
 
 fn show_versions(root: &Path) -> Result<()> {
-    println!("lampctl {}", env!("CARGO_PKG_VERSION"));
+    println!("wlampctl {}", env!("CARGO_PKG_VERSION"));
     println!("xampp root: {}", root.display());
 
     if let Some(line) = apache::get_apache_version(root) {

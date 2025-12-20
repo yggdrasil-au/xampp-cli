@@ -1,14 +1,14 @@
 {
-    "name": "lampctl-cli",
+    "name": "wlampctl-cli",
 
     "description": "Dev environment for all my personal and private web development projects based on my astro template",
-    "version": "0.1.2",
+    "version": "0.1.3",
 
     "license": "^_^",
     "author": "samarixum",
 
     "scripts": {
-        "build": "cd source\\xampp-ui\\new && cargo build --release && copy /Y target\\release\\lampctl.exe ..\\..\\xampp-build\\Built\\installed-xampp\\lampctl.exe",
+        "build": "cd source\\xampp-ui\\new && cargo build --release && copy /Y target\\release\\wlampctl.exe ..\\..\\xampp-build\\Built\\installed-xampp\\wlampctl.exe",
         "clean": "cd source\\xampp-ui\\new && cargo clean"
     }
 }

@@ -131,29 +131,29 @@ fn ensure_vhosts_include(root: &Path) -> Result<()> {
     }
 
     let content = fs::read_to_string(&vhosts_conf)?;
-    let include_directive = "Include \"conf/extra/lampctl-active.conf\"";
+    let include_directive = "Include \"conf/extra/wlampctl-active.conf\"";
 
     // Simple check to avoid double appending
-    if !content.contains("lampctl-active.conf") {
+    if !content.contains("wlampctl-active.conf") {
         println!("ℹ First-run setup: Adding include directive to httpd-vhosts.conf");
         let mut file = OpenOptions::new()
             .append(true)
             .open(&vhosts_conf)?;
-        writeln!(file, "\n# LampCTL Active Project Configuration")?;
+        writeln!(file, "\n# WlampCTL Active Project Configuration")?;
         writeln!(file, "{}", include_directive)?;
     }
     Ok(())
 }
 
 /// Resolves the (DocumentRoot, Port) tuple.
-/// Priority: CLI Args > Existing .lampctl-project.conf > Defaults
-/// Also saves/updates the .lampctl-project.conf file.
+/// Priority: CLI Args > Existing .wlampctl-project.conf > Defaults
+/// Also saves/updates the .wlampctl-project.conf file.
 fn resolve_and_save_config(
     root: &Path,
     arg_root: Option<String>,
     arg_port: Option<u16>
 ) -> Result<(String, u16)> {
-    let config_file_path = env::current_dir()?.join(".lampctl-project.conf");
+    let config_file_path = env::current_dir()?.join(".wlampctl-project.conf");
 
     // Default values if nothing is known
     let mut final_root = env::current_dir()?.display().to_string(); // Default to current dir
@@ -223,9 +223,9 @@ fn resolve_and_save_config(
     let apache_root_path = final_root.replace('\\', "/");
     let apache_root_path = apache_root_path.trim_start_matches("//?/").to_string(); // Remove UNC prefix if present
 
-    // 5. Save back to .lampctl-project.conf
+    // 5. Save back to .wlampctl-project.conf
     let config_content = format!(
-        "# LampCTL Project Configuration\n# Generated: {}\n\nPROJECT_ID={}\nPORT={}\nDOCUMENT_ROOT={}\n",
+        "# WlampCTL Project Configuration\n# Generated: {}\n\nPROJECT_ID={}\nPORT={}\nDOCUMENT_ROOT={}\n",
         chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
         project_id,
         final_port,
@@ -237,13 +237,13 @@ fn resolve_and_save_config(
     Ok((apache_root_path, final_port))
 }
 
-/// Overwrites apache/conf/extra/lampctl-active.conf with the generated VirtualHost block.
+/// Overwrites apache/conf/extra/wlampctl-active.conf with the generated VirtualHost block.
 fn write_active_vhost(root: &Path, doc_root: &str, port: u16) -> Result<()> {
-    let active_conf = root.join("apache").join("conf").join("extra").join("lampctl-active.conf");
+    let active_conf = root.join("apache").join("conf").join("extra").join("wlampctl-active.conf");
 
     let vhost_content = format!(
-        r#"# LampCTL Active Project Configuration
-# This file is automatically overwritten by 'lampctl apache start'
+        r#"# WlampCTL Active Project Configuration
+# This file is automatically overwritten by 'wlampctl apache start'
 # DO NOT EDIT MANUALLY.
 
 Listen {port}
@@ -258,8 +258,8 @@ Listen {port}
     </Directory>
 
     # Default error logging
-    ErrorLog "logs/lampctl-project-error.log"
-    CustomLog "logs/lampctl-project-access.log" common
+    ErrorLog "logs/wlampctl-project-error.log"
+    CustomLog "logs/wlampctl-project-access.log" common
 </VirtualHost>
 "#,
         port = port,
@@ -297,7 +297,7 @@ fn is_port_free(port: u16) -> bool {
 }
 
 fn get_active_port(root: &Path) -> Option<u16> {
-    let active_conf = root.join("apache").join("conf").join("extra").join("lampctl-active.conf");
+    let active_conf = root.join("apache").join("conf").join("extra").join("wlampctl-active.conf");
     if !active_conf.exists() { return None; }
     let content = fs::read_to_string(active_conf).ok()?;
     for line in content.lines() {

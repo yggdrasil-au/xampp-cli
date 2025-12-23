@@ -3,3 +3,4 @@ minor = 1
 patch = 3
 isAlpha = false
 isBeta = false
+isNodeProject = false

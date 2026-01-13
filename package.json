@@ -1,11 +1,15 @@
 {
-    "name": "wlampctl-cli",
+    "name": "@yggdrasil-au/wlampctl-cli",
 
     "description": "Dev environment for all my personal and private web development projects based on my astro template",
-    "version": "0.1.3",
+    "version": "0.1.4",
 
     "license": "^_^",
     "author": "samarixum",
+
+    "bin": {
+        "wlampctl-cli": "wlampctl.cmd"
+    },
 
     "scripts": {
         "build": "cd source\\xampp-ui\\new && cargo build --release && copy /Y target\\release\\wlampctl.exe ..\\..\\xampp-build\\Built\\installed-xampp\\wlampctl.exe",

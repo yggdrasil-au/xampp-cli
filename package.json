@@ -1,18 +1,23 @@
 {
     "name": "@yggdrasil-au/wlampctl-cli",
-
     "description": "Dev environment for all my personal and private web development projects based on my astro template",
-    "version": "0.1.4",
-
+    "version": "0.1.5",
     "license": "^_^",
     "author": "samarixum",
-
     "bin": {
-        "wlampctl-cli": "wlampctl.cmd"
+        "wlampctl-cli": "wlampctl.js"
     },
-
     "scripts": {
-        "build": "cd source\\xampp-ui\\new && cargo build --release && copy /Y target\\release\\wlampctl.exe ..\\..\\xampp-build\\Built\\installed-xampp\\wlampctl.exe",
-        "clean": "cd source\\xampp-ui\\new && cargo clean"
-    }
+        "build-linux": "cd source/xampp-ui/new && cargo build --release && pnpm exec shx cp target/release/wlampctl* /opt/lampp/",
+        "build-win": "cd source/xampp-ui/new && cargo build --release && shx cp target/release/wlampctl* ../../xampp-build/Built/installed-xampp/",
+        "clean": "cd source/xampp-ui/new && cargo clean",
+        "postinstall": "node build.js"
+    },
+    "devDependencies": {
+        "shx": "^0.4.0"
+    },
+    "os": [
+        "win32",
+        "linux"
+    ]
 }

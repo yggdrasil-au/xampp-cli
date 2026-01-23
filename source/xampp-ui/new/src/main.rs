@@ -1,4 +1,3 @@
-#![cfg(windows)]
 
 mod apache;
 mod helpers;
@@ -58,10 +57,16 @@ fn show_versions(root: &Path) -> Result<()> {
     if let Some(line) = apache::get_apache_version(root) {
         println!("apache: {}", line);
     }
-    if let Some(line) = exec_and_first_line(root.join("php").join("php.exe"), ["-v"]) {
+
+    // PHP path differs on Windows vs Linux
+    #[cfg(windows)]
+    let php_bin = root.join("php").join("php.exe");
+    #[cfg(unix)]
+    let php_bin = root.join("bin").join("php");
+
+    if let Some(line) = exec_and_first_line(php_bin, ["-v"]) {
         println!("php: {}", line);
     }
 
     Ok(())
 }
-

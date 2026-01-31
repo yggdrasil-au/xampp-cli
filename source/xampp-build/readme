@@ -1,0 +1,4 @@
+the xampp-build is the tool that generates and installs the xampp tool and its componets
+currently wlamp cli requires a valid xampp install in the WLAP-Server-CLI\Main\source\xampp-build\Built\installed-xampp dir
+
+

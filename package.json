@@ -1,7 +1,7 @@
 {
     "name": "@yggdrasil-au/wlampctl-cli",
     "description": "Dev environment for all my personal and private web development projects based on my astro template",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "license": "^_^",
     "author": "samarixum",
     "bin": {

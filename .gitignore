@@ -4,6 +4,8 @@
 
 !**/src/
 
+node_modules/
+
 !.gitignore
 !Cargo.toml
 

@@ -13,4 +13,5 @@ node_modules/
 **/target/
 /source/xampp-ui/new/xampp/
 
-source/xampp-build/Built/installed-xampp/
+source/xampp-build/Built/
+source/xampp-build/Built/**/
